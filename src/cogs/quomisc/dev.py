@@ -206,6 +206,82 @@ class Dev(Cog):
                 """
         await tabulate_query(ctx, query)
 
+    @commands.command(hidden=True)
+    async def update(self, ctx: Context, mode: str = "pull"):
+        """
+        Update the bot from GitHub.
+        Modes:
+        - pull  → Normal git pull
+        - reset → git reset --hard origin/main
+        - force → fetch + hard reset + pull
+        """
+
+        import os
+        import subprocess
+
+        REPO_URL = "https://github.com/CycloneAddons/Quotient-Legacy"
+        BRANCH = "main"
+
+        def run(cmd):
+            return subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+
+        log = []
+
+        log.append(f"📌 Working directory: {os.getcwd()}")
+        log.append(f"🛠 Mode: {mode}")
+
+        # Step 1 — init git if needed
+        if not os.path.exists(".git"):
+            log.append("🟡 No .git found → initializing repository...")
+            run(["git", "init"])
+        else:
+            log.append("🟢 Git repo detected.")
+
+        # Step 2 — add remote if needed
+        remotes = run(["git", "remote"]).stdout.strip().split("\n")
+        if "origin" not in remotes:
+            log.append(f"🟡 Adding origin → {REPO_URL}")
+            run(["git", "remote", "add", "origin", REPO_URL])
+        else:
+            log.append("🟢 Remote 'origin' exists.")
+
+        # ---- MODE HANDLING ----
+
+        if mode.lower() == "pull":
+            log.append("🔄 Running normal git pull...")
+            result = run(["git", "pull"])
+
+        elif mode.lower() == "reset":
+            log.append("♻️ Running hard reset to origin/main...")
+            result = run(["git", "fetch", "origin"])
+            log.append(result.stdout)
+            result = run(["git", "reset", "--hard", f"origin/{BRANCH}"])
+
+        elif mode.lower() == "force":
+            log.append("🚨 FORCE MODE: Full fetch + hard reset + pull")
+            result = run(["git", "fetch", "--all"])
+            log.append(result.stdout)
+            result = run(["git", "reset", "--hard", f"origin/{BRANCH}"])
+            log.append(result.stdout)
+            result = run(["git", "pull"])
+
+        else:
+            return await ctx.error(
+                "❌ Invalid mode.\nUse: `qupdate`, `qupdate reset`, or `qupdate force`."
+            )
+
+        log.append(result.stdout)
+        log.append("✅ Update complete!")
+
+        final_output = "\n".join(log)
+
+        if len(final_output) > 1800:
+            import io
+            await ctx.send(file=discord.File(io.BytesIO(final_output.encode()), filename="qupdate_log.txt"))
+        else:
+            await ctx.success(f"```py\n{final_output}```")
+
+
     @command_history.command(name="for")
     async def command_history_for(self, ctx, days: T.Optional[int] = 7, *, command: str):
         """Command history for a command."""

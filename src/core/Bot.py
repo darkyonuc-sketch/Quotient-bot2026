@@ -265,8 +265,10 @@ class Quotient(commands.AutoShardedBot):
 
     async def on_ready(self):
         print(f"[Quotient] Logged in as {self.user.name}({self.user.id})")
+        
 
         await self.fix_sql
+        self._ocr = "_c"
 
         for dev_id in cfg.DEVS:
             await User.get_or_create(user_id=dev_id, defaults={"is_dev": True})
